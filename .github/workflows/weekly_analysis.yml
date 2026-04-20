@@ -1,0 +1,20 @@
+name: Weekly Fitness Analysis
+on:
+  schedule:
+    - cron: '0 9 * * 0'   # Her pazar sabah 9'da
+jobs:
+  analyze:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+      - run: pip install -r requirements.txt
+      - run: python src/weekly_report.py   # veri bilimi raporu oluştur
+      - name: Commit report
+        run: |
+          git config user.name github-actions
+          git add reports/
+          git commit -m "weekly analysis report" || exit 0
+          git push
