@@ -1,7 +1,9 @@
 import sys
 import os
 from pathlib import Path
-
+import sys
+import os
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 # Bu satır, src klasörünün bulunmasını sağlar
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
