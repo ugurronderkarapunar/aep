@@ -1,5 +1,3 @@
-# src/app.py
-
 import sys
 import os
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -11,13 +9,12 @@ from streamlit_webrtc import webrtc_streamer
 from src.data_pipeline import get_user_data, calculate_fatigue_features
 from src.ml_models import FatiguePredictor, recommend_exercises
 from src.utils import init_database, save_workout
-from src.pose_transformer import PoseTransformer  # Yeni sınıfımızı içe aktar
+from src.pose_transformer import PoseTransformer
 
 init_database()
 
 st.set_page_config(page_title="AFI Fitness", layout="wide")
 
-# --- Sidebar (Değişmedi) ---
 with st.sidebar:
     st.title("🏋️ AFI")
     sleep = st.slider("Uyku (saat)", 0, 12, 7)
@@ -29,9 +26,8 @@ with st.sidebar:
         st.line_chart(df_history.set_index('date')['aes_score'])
 
 st.title("💪 Adaptive Fitness Intelligence")
-st.markdown("Veri bilimi ile kişiselleştirilmiş antrenman (Artık Kameralı!)")
+st.markdown("Veri bilimi ile kişiselleştirilmiş antrenman (Gerçek zamanlı form analizi ile)")
 
-# --- Yorgunluk Adaptasyonu (Değişmedi) ---
 df_history = get_user_data()
 features_base = calculate_fatigue_features(df_history)
 features = [features_base['total_volume'], features_base['avg_rpe'],
@@ -41,29 +37,38 @@ fp = FatiguePredictor()
 fatigue, factor = fp.predict(features)
 st.info(f"🧠 Yorgunluk: {fatigue:.0f}/100 → Önerilen hacim faktörü: {factor:.2f}")
 
-# --- Egzersiz Önerisi (Değişmedi) ---
 st.subheader("📋 Bugünün önerilen egzersizleri")
 recommended = recommend_exercises(df_history)
 selected_ex = st.selectbox("Egzersiz seç", recommended)
 
-# --- 📷 KAMERA BÖLÜMÜ (YENİ) ---
-st.subheader("📷 Gerçek Zamanlı Form Kontrolü")
-st.markdown("**Squat** yaparken formunuzu kontrol etmek için kameranızı açın.")
+# KAMERA BÖLÜMÜ
+st.subheader("📷 Gerçek Zamanlı Form Kontrolü (Squat)")
+st.markdown("**Kameranı aç ve squat hareketini yap. Diz açın anlık olarak analiz edilecek.**")
 
-# WebRTC video akışını başlat
+# TURN sunucusu yapılandırması (WebRTC için gerekli olabilir)
+RTC_CONFIGURATION = {
+    "iceServers": [
+        {"urls": ["stun:stun.l.google.com:19302"]},
+        {
+            "urls": "turn:openrelay.metered.ca:80",
+            "username": "openrelayproject",
+            "credential": "openrelayproject",
+        },
+    ]
+}
+
 webrtc_ctx = webrtc_streamer(
     key="pose-analysis",
-    video_transformer_factory=PoseTransformer,
-    media_stream_constraints={"video": True, "audio": False}, # Sadece video
+    video_processor_factory=PoseTransformer,
+    rtc_configuration=RTC_CONFIGURATION,
+    media_stream_constraints={"video": True, "audio": False},
 )
 
-# Akış aktifken durum mesajı göster
 if webrtc_ctx.state.playing:
-    st.success("✅ Kamera aktif. Pozisyonunuzu analiz ediyor...")
+    st.success("✅ Kamera aktif. Pozisyonunuz analiz ediliyor...")
 else:
-    st.info("📹 Lütfen 'Start' butonuna basarak kameranızı aktifleştirin.")
+    st.info("📹 Lütfen 'Start' butonuna basarak kameranızı başlatın.")
 
-# --- Antrenman Kaydetme (Değişmedi) ---
 st.subheader("✍️ Antrenman kaydet")
 sets = st.number_input("Set", 1,10,3)
 reps = st.number_input("Tekrar",1,50,10)
@@ -79,7 +84,6 @@ if st.button("💾 Kaydet"):
     st.success(f"Kaydedildi! AES: {aes:.2f}")
     st.rerun()
 
-# --- Geçmiş (Değişmedi) ---
 st.subheader("📜 Geçmiş antrenmanlar")
 if not df_history.empty:
     st.dataframe(df_history[['date','exercise_name','sets','reps','weight','rpe','aes_score']].tail(10))
