@@ -4,7 +4,7 @@ numpy==1.23.5
 scikit-learn==1.2.2
 plotly==5.15.0
 joblib==1.2.0
-streamlit-webrtc==0.45.1   # Gerçek zamanlı video akışı için
-opencv-python-headless==4.8.1.78   # GUI bağımlılığı olmayan OpenCV
-mediapipe==0.10.7   # Poz tahmini için
-av==10.0.0   # streamlit-webrtc için gerekli
+streamlit-webrtc>=0.48.1
+av>=10.0.0
+opencv-python-headless==4.8.1.78
+mediapipe==0.10.7
