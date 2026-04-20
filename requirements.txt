@@ -1,8 +1,8 @@
 streamlit==1.28.0
-pandas==2.1.0
-numpy==1.24.3
-scikit-learn==1.3.0
-mediapipe==0.10.7
-opencv-python==4.8.1
-plotly==5.17.0
-joblib==1.3.2
+pandas==2.0.3
+numpy==1.23.5
+scikit-learn==1.2.2
+mediapipe==0.10.3
+opencv-python==4.7.0.72
+plotly==5.15.0
+joblib==1.2.0
