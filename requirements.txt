@@ -9,3 +9,4 @@ scikit-learn==1.2.2
 mediapipe==0.10.9
 plotly==5.15.0
 joblib==1.2.0
+rtmlib
