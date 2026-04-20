@@ -1,8 +1,11 @@
-streamlit
-pandas
-numpy
-scikit-learn
-mediapipe
-opencv-python
-plotly
-joblib
+# ÖNCE: opencv-python-headless'i manuel olarak yükle.
+opencv-python-headless==4.9.0.80
+
+# SONRA: Diğer tüm bağımlılıkları yükle.
+streamlit==1.28.0
+pandas==2.0.3
+numpy==1.23.5
+scikit-learn==1.2.2
+mediapipe==0.10.9
+plotly==5.15.0
+joblib==1.2.0
