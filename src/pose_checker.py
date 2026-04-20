@@ -1,44 +1,111 @@
 import streamlit as st
 import numpy as np
+from rtmlib import Wholebody, draw_skeleton
+import cv2  # sadece VideoCapture için, GUI yok
+from src.utils import calculate_angle
 
-# RTMlib'i projene ekle
-try:
-    from rtmlib import RTMDet, Body, draw_skeleton
-except ImportError:
-    st.error("RTMlib yüklenemedi. Lütfen terminalden 'pip install rtmlib' komutunu çalıştırın.")
-    st.stop()
-
-# Modeli bir kere yükle (performans için)
+# RTMlib modelini bir kere yükle (cache)
 @st.cache_resource
 def load_pose_model():
-    # OpenCV'nin yerini alan, hafif bir pose modeli
-    body_model = Body(
-        model='rtmpose-m',
-        device='cpu',  # Streamlit Cloud'da GPU olmadığı için CPU
-        backend='onnxruntime' # ONNX ile daha hızlı çalışır
+    # Wholebody model (vücut + yüz + eller) – hafif ve headless uyumlu
+    model = Wholebody(
+        to_openpose=False,
+        backend='onnxruntime',  # CPU'da hızlı
+        device='cpu'
     )
-    return body_model
+    return model
 
-def calculate_angle(a, b, c):
-    """3 nokta arasındaki açıyı hesaplar."""
-    a = np.array(a)
-    b = np.array(b)
-    c = np.array(c)
-    
-    radians = np.arctan2(c[1]-b[1], c[0]-b[0]) - np.arctan2(a[1]-b[1], a[0]-b[0])
-    angle = np.abs(radians * 180.0 / np.pi)
-    if angle > 180.0:
-        angle = 360 - angle
-    return angle
+def get_landmarks_from_frame(model, frame):
+    """Verilen kare (numpy array) üzerinden landmarkları al."""
+    # frame BGR formatında olabilir, RTMlib RGB bekler
+    rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+    keypoints, scores = model(rgb)
+    if keypoints is None or len(keypoints) == 0:
+        return None
+    # İlk kişiyi al
+    kpts = keypoints[0]  # shape (n, 3) veya (n,2)
+    # Kullanacağımız landmark indeksleri (COCO formatı):
+    # 5: sol omuz, 6: sağ omuz, 11: sol kalça, 12: sağ kalça,
+    # 13: sol diz, 14: sağ diz, 15: sol ayak, 16: sağ ayak
+    return kpts
 
 def check_squat_form():
-    """Squat hareketi için form kontrolü (kamerayı kullanır)."""
-    # Bu fonksiyon, RTMlib ile çalışacak şekilde yeniden yazılmalıdır.
-    # Detaylı implementasyon için özel bir rehber gerekebilir.
-    st.info("Bu özellik RTMlib ile uyumlu hale getiriliyor. Lütfen daha sonra tekrar deneyin.")
-    return False
+    st.info("📷 Kamera başlatılıyor... (izin verin)")
+    cap = cv2.VideoCapture(0)
+    if not cap.isOpened():
+        st.error("Kamera açılamadı. Lütfen kamera izinlerini kontrol edin.")
+        return False
+    
+    model = load_pose_model()
+    stframe = st.empty()
+    correct_count = 0
+    required_frames = 20
+    
+    for _ in range(required_frames):
+        ret, frame = cap.read()
+        if not ret:
+            break
+        
+        # Landmarkları al
+        kpts = get_landmarks_from_frame(model, frame)
+        if kpts is not None:
+            # Sol diz açısı (kalça - diz - ayak)
+            hip = kpts[11]    # sol kalça
+            knee = kpts[13]   # sol diz
+            ankle = kpts[15]  # sol ayak
+            # Eğer landmarklar yoksa veya görünürlük düşükse geç
+            if hip is not None and knee is not None and ankle is not None:
+                angle = calculate_angle(hip[:2], knee[:2], ankle[:2])
+                if 70 < angle < 110:
+                    correct_count += 1
+        
+        # Görüntüyü göster (OpenCV frame BGR, Streamlit RGB)
+        frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+        stframe.image(frame_rgb, channels="RGB", use_column_width=True)
+    
+    cap.release()
+    if correct_count > required_frames // 2:
+        st.success("✅ Squat formun doğru!")
+        return True
+    else:
+        st.warning("⚠️ Diz açını 90 dereceye yaklaştırmaya çalış.")
+        return False
 
 def check_pushup_form():
-    """Şınav hareketi için form kontrolü (kamerayı kullanır)."""
-    st.info("Bu özellik RTMlib ile uyumlu hale getiriliyor. Lütfen daha sonra tekrar deneyin.")
-    return False
+    st.info("📷 Şınav kontrolü başlatılıyor...")
+    cap = cv2.VideoCapture(0)
+    if not cap.isOpened():
+        st.error("Kamera açılamadı.")
+        return False
+    
+    model = load_pose_model()
+    stframe = st.empty()
+    correct_count = 0
+    required_frames = 15
+    
+    for _ in range(required_frames):
+        ret, frame = cap.read()
+        if not ret:
+            break
+        
+        kpts = get_landmarks_from_frame(model, frame)
+        if kpts is not None:
+            # Omuz - dirsek - bilek açısı (sol kol)
+            shoulder = kpts[5]   # sol omuz
+            elbow = kpts[7]      # sol dirsek
+            wrist = kpts[9]      # sol bilek
+            if shoulder is not None and elbow is not None and wrist is not None:
+                angle = calculate_angle(shoulder[:2], elbow[:2], wrist[:2])
+                if 90 < angle < 160:
+                    correct_count += 1
+        
+        frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+        stframe.image(frame_rgb, channels="RGB", use_column_width=True)
+    
+    cap.release()
+    if correct_count > required_frames // 2:
+        st.success("✅ Şınav formun iyi!")
+        return True
+    else:
+        st.warning("⚠️ Dirseklerini 90 dereceye kadar kırmaya çalış.")
+        return False
