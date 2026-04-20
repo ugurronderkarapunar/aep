@@ -25,7 +25,7 @@ with st.sidebar:
         st.line_chart(df_history.set_index('date')['aes_score'])
 
 st.title("💪 Adaptive Fitness Intelligence")
-st.markdown("Veri bilimi ile kişiselleştirilmiş antrenman")
+st.markdown("Veri bilimi ile kişiselleştirilmiş antrenman (RTMlib ile form analizi)")
 
 df_history = get_user_data()
 features_base = calculate_fatigue_features(df_history)
@@ -34,7 +34,7 @@ features = [features_base['total_volume'], features_base['avg_rpe'],
             sleep, muscle_soreness]
 fp = FatiguePredictor()
 fatigue, factor = fp.predict(features)
-st.info(f"🧠 Yorgunluk: {fatigue:.0f}/100 → Hacim faktörü: {factor:.2f}")
+st.info(f"🧠 Yorgunluk: {fatigue:.0f}/100 → Önerilen hacim faktörü: {factor:.2f}")
 
 st.subheader("📋 Bugünün önerilen egzersizleri")
 recommended = recommend_exercises(df_history)
@@ -42,17 +42,13 @@ selected_ex = st.selectbox("Egzersiz seç", recommended)
 
 col1, col2 = st.columns(2)
 with col1:
-    if st.button("🎥 Squat kontrol"):
-        if check_squat_form():
-            st.success("✅ Form doğru")
-        else:
-            st.warning("⚠️ Diz açını kontrol et")
+    if st.button("🎥 Squat formunu kontrol et"):
+        with st.spinner("Kamera açılıyor, poz ver..."):
+            check_squat_form()
 with col2:
-    if st.button("🎥 Şınav kontrol"):
-        if check_pushup_form():
-            st.success("✅ Form iyi")
-        else:
-            st.warning("⚠️ Dirsek 90°")
+    if st.button("🎥 Şınav formunu kontrol et"):
+        with st.spinner("Kamera açılıyor..."):
+            check_pushup_form()
 
 st.subheader("✍️ Antrenman kaydet")
 sets = st.number_input("Set", 1,10,3)
@@ -69,6 +65,8 @@ if st.button("💾 Kaydet"):
     st.success(f"Kaydedildi! AES: {aes:.2f}")
     st.rerun()
 
-st.subheader("📜 Geçmiş")
+st.subheader("📜 Geçmiş antrenmanlar")
 if not df_history.empty:
     st.dataframe(df_history[['date','exercise_name','sets','reps','weight','rpe','aes_score']].tail(10))
+else:
+    st.info("Henüz kayıtlı antrenman yok.")
